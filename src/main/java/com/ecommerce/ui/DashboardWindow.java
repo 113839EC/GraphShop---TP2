@@ -724,41 +724,37 @@ public class DashboardWindow extends JFrame {
             int w = getWidth(), h = getHeight();
             int cx = w / 2, cy = h / 2;
 
-            // Posiciones de los nodos (relativos al centro)
+            // Radio y offsets que llenan exactamente el panel sin salirse
+            int r    = Math.max(26, Math.min(42, Math.min(w, h) / 8));
+            int hOff = w / 2 - r - 16;
+            int vOff = h / 2 - r - 16;
+
             int[][] pos = {
-                {cx - 30,  cy - 90},   // User  (arriba-centro)
-                {cx + 220, cy + 10},   // Order (derecha)
-                {cx - 30,  cy + 100},  // Product (abajo-centro)
-                {cx - 280, cy + 10},   // Category (izquierda)
+                {cx,        cy - vOff},
+                {cx + hOff, cy},
+                {cx,        cy + vOff},
+                {cx - hOff, cy},
             };
 
-            // Relaciones
             Color[] relColors = {PALETTE[4], PALETTE[0], PALETTE[1], PALETTE[2], PALETTE[5]};
-            double[] curves   = {0.0, 0.0, 0.0, -60.0, 60.0}; // curvatura de bezier
+            double[] curves   = {0.0, 0.0, 0.0, (double)(-vOff * 0.55), (double)(vOff * 0.55)};
 
             for (int i = 0; i < RELS.length; i++) {
-                int from = (int) RELS[i][0], to = (int) RELS[i][1];
-                String lbl  = (String) RELS[i][2];
-                String prop = (String) RELS[i][3];
-                drawRelation(g2, pos[from], pos[to], lbl, prop, relColors[i], curves[i]);
+                drawRelation(g2, pos[(int)RELS[i][0]], pos[(int)RELS[i][1]],
+                        (String)RELS[i][2], relColors[i], curves[i]);
             }
 
-            // Nodos encima de las relaciones
-            int r = 44;
             for (int i = 0; i < 4; i++) {
-                drawNode(g2, pos[i][0], pos[i][1], r, NODE_NAMES[i], NODE_PROPS[i], NODE_COLORS[i]);
+                drawNode(g2, pos[i][0], pos[i][1], r, NODE_NAMES[i], NODE_COLORS[i]);
             }
 
             g2.dispose();
         }
 
-        private void drawNode(Graphics2D g2, int cx, int cy, int r,
-                              String name, String[] props, Color color) {
-            // shadow
+        private void drawNode(Graphics2D g2, int cx, int cy, int r, String name, Color color) {
             g2.setColor(new Color(0, 0, 0, 80));
             g2.fillOval(cx - r + 4, cy - r + 4, r * 2, r * 2);
 
-            // circle
             g2.setColor(color.darker().darker());
             g2.fillOval(cx - r, cy - r, r * 2, r * 2);
             g2.setPaint(new RadialGradientPaint(new Point(cx - r/3, cy - r/3),
@@ -766,30 +762,18 @@ public class DashboardWindow extends JFrame {
                     new Color[]{color.brighter(), color.darker()}));
             g2.fillOval(cx - r, cy - r, r * 2, r * 2);
 
-            // border
             g2.setColor(color.brighter());
             g2.setStroke(new BasicStroke(2.5f));
             g2.drawOval(cx - r, cy - r, r * 2, r * 2);
 
-            // label name
             g2.setColor(Color.WHITE);
-            g2.setFont(new Font("Segoe UI", Font.BOLD, 14));
+            g2.setFont(new Font("Segoe UI", Font.BOLD, Math.max(11, r / 3)));
             FontMetrics fm = g2.getFontMetrics();
-            g2.drawString(name, cx - fm.stringWidth(name)/2, cy + fm.getAscent()/2 - 2);
-
-            // properties tooltip below node
-            g2.setFont(new Font("Segoe UI", Font.PLAIN, 9));
-            fm = g2.getFontMetrics();
-            g2.setColor(TXT_MUTED);
-            int py = cy + r + 14;
-            for (String p : props) {
-                g2.drawString(p, cx - fm.stringWidth(p)/2, py);
-                py += 12;
-            }
+            g2.drawString(name, cx - fm.stringWidth(name)/2, cy + fm.getAscent()/2 - 1);
         }
 
         private void drawRelation(Graphics2D g2, int[] from, int[] to,
-                                   String label, String props, Color color, double curve) {
+                                   String label, Color color, double curve) {
             g2.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
             g2.setColor(color.darker());
 
@@ -798,23 +782,17 @@ public class DashboardWindow extends JFrame {
 
             if (Math.abs(curve) < 0.5) {
                 g2.drawLine(x1, y1, x2, y2);
-                // arrowhead
                 drawArrow(g2, x1, y1, x2, y2, color);
-                // label at midpoint
-                int mx = (x1+x2)/2, my = (y1+y2)/2;
-                drawRelLabel(g2, mx, my, label, props, color);
+                drawRelLabel(g2, (x1+x2)/2, (y1+y2)/2, label, color);
             } else {
-                // Quadratic bezier
                 int mx = (x1+x2)/2, my = (y1+y2)/2;
-                // perpendicular offset
                 double dx = x2 - x1, dy = y2 - y1;
                 double len = Math.sqrt(dx*dx + dy*dy);
-                int cx = (int)(mx - curve * dy / len);
-                int cy = (int)(my + curve * dx / len);
-
-                QuadCurve2D qc = new QuadCurve2D.Double(x1, y1, cx, cy, x2, y2);
-                g2.draw(qc);
-                drawRelLabel(g2, cx, cy, label, props, color);
+                int bx = (int)(mx - curve * dy / len);
+                int by = (int)(my + curve * dx / len);
+                g2.draw(new QuadCurve2D.Double(x1, y1, bx, by, x2, y2));
+                drawArrow(g2, x1, y1, x2, y2, color);
+                drawRelLabel(g2, bx, by, label, color);
             }
         }
 
@@ -830,24 +808,15 @@ public class DashboardWindow extends JFrame {
             g2.fillPolygon(xs, ys, 3);
         }
 
-        private void drawRelLabel(Graphics2D g2, int mx, int my,
-                                   String label, String props, Color color) {
+        private void drawRelLabel(Graphics2D g2, int mx, int my, String label, Color color) {
             g2.setFont(new Font("Segoe UI", Font.BOLD, 10));
             FontMetrics fm = g2.getFontMetrics();
             String full = ":" + label;
             int lw = fm.stringWidth(full);
-            // pill background
             g2.setColor(new Color(18, 18, 27, 210));
             g2.fillRoundRect(mx - lw/2 - 5, my - 13, lw + 10, 15, 6, 6);
             g2.setColor(color.brighter());
             g2.drawString(full, mx - lw/2, my - 2);
-
-            if (!props.isEmpty()) {
-                g2.setFont(new Font("Segoe UI", Font.PLAIN, 8));
-                fm = g2.getFontMetrics();
-                g2.setColor(TXT_MUTED);
-                g2.drawString("{" + props + "}", mx - fm.stringWidth("{"+props+"}")/2, my + 9);
-            }
         }
     }
 
