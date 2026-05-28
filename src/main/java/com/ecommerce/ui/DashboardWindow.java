@@ -70,8 +70,17 @@ public class DashboardWindow extends JFrame {
 
     // ─── Header ──────────────────────────────────────────────────────────────
     private JPanel buildHeader() {
-        JPanel p = new JPanel(new BorderLayout());
-        p.setBackground(new Color(13, 13, 20));
+        JPanel p = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = aa(g);
+                g2.setPaint(new GradientPaint(0, 0, new Color(10, 10, 22), getWidth(), 0, new Color(24, 18, 44)));
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.setPaint(new GradientPaint(0, 0, ACCENT, getWidth(), 0, PALETTE[4]));
+                g2.fillRect(0, getHeight() - 2, getWidth(), 2);
+                g2.dispose();
+            }
+        };
+        p.setOpaque(true);
         p.setBorder(new EmptyBorder(14, 28, 14, 28));
 
         JLabel title = label("GRAPHSHOP  ·  Dashboard Analytics",
@@ -111,9 +120,16 @@ public class DashboardWindow extends JFrame {
 
     // ─── Footer ──────────────────────────────────────────────────────────────
     private JPanel buildFooter() {
-        JPanel p = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 6));
-        p.setBackground(new Color(13, 13, 20));
-        p.setBorder(new EmptyBorder(2, 10, 2, 10));
+        JPanel p = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 6)) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = aa(g);
+                g2.setPaint(new GradientPaint(0, 0, new Color(10, 10, 22), getWidth(), 0, new Color(24, 18, 44)));
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.dispose();
+            }
+        };
+        p.setOpaque(true);
+        p.setBorder(new EmptyBorder(5, 10, 5, 10));
 
         JButton refresh = styledBtn("↺  Actualizar", ACCENT);
         refresh.addActionListener(e -> {
@@ -281,8 +297,8 @@ public class DashboardWindow extends JFrame {
         if (!viewedData.isEmpty()) {
             String[] nombres = viewedData.stream().map(m -> m.get("nombre").toString()).toArray(String[]::new);
             double[] vistas  = viewedData.stream().mapToDouble(m -> ((Long) m.get("totalVistas")).doubleValue()).toArray();
-            top.add(titled(new HBarChart(nombres, vistas, PALETTE),
-                    "Productos más vistos  (relación VIEWED)"));
+            top.add(titled(new HBarChart(nombres, vistas, PALETTE, false),
+                    "Productos más vistos  (relación VISTO)"));
         }
         outer.add(top, BorderLayout.CENTER);
 
@@ -299,6 +315,28 @@ public class DashboardWindow extends JFrame {
                 };
             }
             JTable table = styledTable(cols, rows);
+            // Centrar columnas Visitas (3) y Prom. segundos (4)
+            javax.swing.table.DefaultTableCellRenderer centerRender =
+                new javax.swing.table.DefaultTableCellRenderer() {
+                    { setHorizontalAlignment(JLabel.CENTER); }
+                    @Override public java.awt.Component getTableCellRendererComponent(
+                            JTable t, Object v, boolean sel, boolean foc, int row, int col) {
+                        super.getTableCellRendererComponent(t, v, sel, foc, row, col);
+                        setBackground(row % 2 == 0 ? BG_CARD : new Color(35, 35, 55));
+                        setForeground(TXT_LIGHT);
+                        return this;
+                    }
+                };
+            table.getColumnModel().getColumn(3).setCellRenderer(centerRender);
+            table.getColumnModel().getColumn(4).setCellRenderer(centerRender);
+            javax.swing.table.DefaultTableCellRenderer centerHeader =
+                new javax.swing.table.DefaultTableCellRenderer();
+            centerHeader.setHorizontalAlignment(JLabel.CENTER);
+            centerHeader.setBackground(new Color(22, 22, 42));
+            centerHeader.setForeground(ACCENT);
+            centerHeader.setFont(new Font("Segoe UI", Font.BOLD, 12));
+            table.getColumnModel().getColumn(3).setHeaderRenderer(centerHeader);
+            table.getColumnModel().getColumn(4).setHeaderRenderer(centerHeader);
             JScrollPane scroll = new JScrollPane(table);
             scroll.setBackground(BG_DARK);
             scroll.getViewport().setBackground(BG_CARD);
@@ -411,14 +449,24 @@ public class DashboardWindow extends JFrame {
         r2.add(bigKpi("Top Cliente",      firstName(topNombre),               "mayor gasto",     PALETTE[5]));
         r2.add(bigKpi("Mayor Gasto",      String.format("$%,.0f", topGasto), "un solo cliente", PALETTE[6]));
 
-        JPanel kpis = new JPanel(new GridLayout(2, 1, 0, 18));
+        JPanel kpis = new JPanel(new GridLayout(2, 1, 0, 14));
         kpis.setOpaque(false);
+        kpis.setPreferredSize(new Dimension(0, 180));
         kpis.add(r1);
         kpis.add(r2);
 
-        outer.add(kpis, BorderLayout.NORTH);
-        outer.add(titled(new SchemaDiagram(),
-                "Modelo de Grafo Neo4j — Nodos y Relaciones"), BorderLayout.CENTER);
+        SchemaDiagram diagram = new SchemaDiagram();
+        diagram.setPreferredSize(new Dimension(0, 340));
+        JScrollPane diagramScroll = new JScrollPane(titled(diagram,
+                "Modelo de Grafo Neo4j — Nodos y Relaciones"));
+        diagramScroll.setOpaque(false);
+        diagramScroll.getViewport().setOpaque(false);
+        diagramScroll.getViewport().setBackground(BG_DARK);
+        diagramScroll.setBorder(null);
+        diagramScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+
+        outer.add(kpis,          BorderLayout.NORTH);
+        outer.add(diagramScroll, BorderLayout.CENTER);
         return outer;
     }
 
@@ -431,9 +479,15 @@ public class DashboardWindow extends JFrame {
         private final String[] labels;
         private final double[] values;
         private final Color[]  colors;
+        private final boolean  isCurrency;
 
         HBarChart(String[] labels, double[] values, Color[] colors) {
+            this(labels, values, colors, true);
+        }
+
+        HBarChart(String[] labels, double[] values, Color[] colors, boolean isCurrency) {
             this.labels = labels; this.values = values; this.colors = colors;
+            this.isCurrency = isCurrency;
             setOpaque(false);
         }
 
@@ -473,7 +527,8 @@ public class DashboardWindow extends JFrame {
                 // value (right)
                 g2.setColor(c.brighter());
                 g2.setFont(new Font("Segoe UI", Font.BOLD, 11));
-                g2.drawString(fmtVal(values[i]), pL + bw + 6, y + barH / 2 + 4);
+                String valStr = isCurrency ? fmtVal(values[i]) : String.format("%.0f", values[i]);
+                g2.drawString(valStr, pL + bw + 6, y + barH / 2 + 4);
             }
 
             // axis
@@ -500,7 +555,7 @@ public class DashboardWindow extends JFrame {
             Graphics2D g2 = aa(g);
 
             int w = getWidth(), h = getHeight();
-            int pL = 70, pR = 16, pT = 30, pB = 90;
+            int pL = 70, pR = 16, pT = 30, pB = 120;
             int cW = w - pL - pR, cH = h - pT - pB;
             double max = Arrays.stream(values).max().orElse(1);
 
@@ -538,10 +593,10 @@ public class DashboardWindow extends JFrame {
                 // label (rotated 45°)
                 g2.setFont(new Font("Segoe UI", Font.PLAIN, 11));
                 AffineTransform orig = g2.getTransform();
-                g2.translate(x + barW / 2 + 4, pT + cH + 10);
-                g2.rotate(Math.PI / 4.5);
+                g2.translate(x + barW / 2 + 4, pT + cH + 12);
+                g2.rotate(Math.PI / 5.5);
                 g2.setColor(TXT_MUTED);
-                g2.drawString(trunc(labels[i], 12), 0, 0);
+                g2.drawString(trunc(labels[i], 16), 0, 0);
                 g2.setTransform(orig);
             }
 
@@ -600,9 +655,17 @@ public class DashboardWindow extends JFrame {
 
                 // score + stars
                 g2.setColor(c.brighter());
+                int mid = y + barH / 2 + 5;
                 g2.setFont(new Font("Segoe UI", Font.BOLD, 12));
-                String score = String.format("%.1f ★  (%d reseñas)", values[i], counts[i]);
-                g2.drawString(score, pL + bw + 8, y + barH/2 + 5);
+                String numStr = String.format("%.1f ", values[i]);
+                g2.drawString(numStr, pL + bw + 8, mid);
+                int numW = g2.getFontMetrics().stringWidth(numStr);
+                g2.setFont(new Font("Segoe UI Symbol", Font.PLAIN, 12));
+                g2.drawString("★", pL + bw + 8 + numW, mid);
+                int starW = g2.getFontMetrics().stringWidth("★");
+                g2.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+                g2.setColor(TXT_MUTED);
+                g2.drawString(String.format("  (%d reseñas)", counts[i]), pL + bw + 8 + numW + starW, mid);
             }
 
             // axis marks 1-5
@@ -870,27 +933,46 @@ public class DashboardWindow extends JFrame {
     }
 
     private JPanel titled(JComponent chart, String title) {
-        JPanel p = new JPanel(new BorderLayout(0, 10));
-        p.setBackground(BG_PANEL);
-        p.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(55, 55, 85), 1),
-            new EmptyBorder(14, 18, 14, 18)
-        ));
+        JPanel p = new JPanel(new BorderLayout(0, 10)) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = aa(g);
+                g2.setColor(BG_PANEL);
+                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
+                g2.setColor(new Color(55, 55, 85));
+                g2.setStroke(new BasicStroke(1.2f));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
+                g2.setColor(ACCENT);
+                g2.fillRoundRect(18, 0, 48, 4, 3, 3);
+                g2.dispose();
+            }
+        };
+        p.setOpaque(false);
+        p.setBorder(new EmptyBorder(18, 18, 14, 18));
         JLabel lbl = label(title, new Font("Segoe UI", Font.BOLD, 13), ACCENT);
-        lbl.setBorder(new EmptyBorder(0, 0, 6, 0));
+        lbl.setBorder(new EmptyBorder(0, 0, 8, 0));
         p.add(lbl,   BorderLayout.NORTH);
         p.add(chart, BorderLayout.CENTER);
         return p;
     }
 
     private JPanel kpiCard(String title, String val, String sub, Color color) {
-        JPanel p = new JPanel(new GridLayout(3, 1, 0, 2));
-        p.setBackground(BG_CARD);
-        p.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(color.darker(), 1),
-            new EmptyBorder(8, 14, 8, 14)
-        ));
-        p.setPreferredSize(new Dimension(148, 70));
+        JPanel p = new JPanel(new GridLayout(3, 1, 0, 2)) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = aa(g);
+                g2.setColor(BG_CARD);
+                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
+                g2.setColor(color);
+                g2.fillRoundRect(0, 0, getWidth() - 1, 5, 12, 12);
+                g2.fillRect(0, 3, getWidth() - 1, 2);
+                g2.setColor(color.darker());
+                g2.setStroke(new BasicStroke(1f));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
+                g2.dispose();
+            }
+        };
+        p.setOpaque(false);
+        p.setBorder(new EmptyBorder(12, 14, 8, 14));
+        p.setPreferredSize(new Dimension(148, 76));
         p.add(label(title, new Font("Segoe UI", Font.PLAIN,  11), TXT_MUTED));
         p.add(label(val,   new Font("Segoe UI", Font.BOLD,   18), color));
         p.add(label(sub,   new Font("Segoe UI", Font.PLAIN,  10), TXT_MUTED));
@@ -898,46 +980,81 @@ public class DashboardWindow extends JFrame {
     }
 
     private JPanel bigKpi(String title, String val, String sub, Color color) {
-        JPanel p = new JPanel(new GridLayout(3, 1, 0, 4));
-        p.setBackground(BG_CARD);
-        p.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(color, 2),
-            new EmptyBorder(14, 18, 14, 18)
-        ));
-        p.add(label(title, new Font("Segoe UI", Font.PLAIN, 12), TXT_MUTED));
-        p.add(label(val,   new Font("Segoe UI", Font.BOLD,  26), color));
-        p.add(label(sub,   new Font("Segoe UI", Font.PLAIN, 11), TXT_MUTED));
+        JPanel p = new JPanel(new GridLayout(3, 1, 0, 4)) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = aa(g);
+                g2.setPaint(new GradientPaint(0, 0,
+                    new Color(color.getRed(), color.getGreen(), color.getBlue(), 35),
+                    0, getHeight(), BG_CARD));
+                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
+                g2.setColor(color);
+                g2.fillRoundRect(0, 0, getWidth() - 1, 6, 16, 16);
+                g2.fillRect(0, 4, getWidth() - 1, 2);
+                g2.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 160));
+                g2.setStroke(new BasicStroke(1.5f));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
+                g2.dispose();
+            }
+        };
+        p.setOpaque(false);
+        p.setBorder(new EmptyBorder(10, 14, 8, 14));
+        p.add(label(title, new Font("Segoe UI", Font.PLAIN, 11), TXT_MUTED));
+        p.add(label(val,   new Font("Segoe UI", Font.BOLD,  22), color));
+        p.add(label(sub,   new Font("Segoe UI", Font.PLAIN, 10), TXT_MUTED));
         return p;
     }
 
     private JTable styledTable(String[] cols, Object[][] data) {
+        Color rowAlt = new Color(35, 35, 55);
         JTable t = new JTable(data, cols) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
+            @Override public java.awt.Component prepareRenderer(
+                    javax.swing.table.TableCellRenderer renderer, int row, int col) {
+                java.awt.Component c = super.prepareRenderer(renderer, row, col);
+                if (!isRowSelected(row)) {
+                    c.setBackground(row % 2 == 0 ? BG_CARD : rowAlt);
+                    c.setForeground(TXT_LIGHT);
+                }
+                return c;
+            }
         };
         t.setBackground(BG_CARD);
         t.setForeground(TXT_LIGHT);
         t.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        t.setRowHeight(28);
-        t.setGridColor(new Color(50, 50, 70));
-        t.setSelectionBackground(new Color(60, 60, 110));
-        t.setSelectionForeground(TXT_LIGHT);
-        t.getTableHeader().setBackground(BG_PANEL);
+        t.setRowHeight(30);
+        t.setGridColor(new Color(45, 45, 68));
+        t.setSelectionBackground(new Color(70, 70, 130));
+        t.setSelectionForeground(Color.WHITE);
+        t.getTableHeader().setBackground(new Color(22, 22, 42));
         t.getTableHeader().setForeground(ACCENT);
         t.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+        t.getTableHeader().setBorder(BorderFactory.createLineBorder(new Color(55, 55, 85)));
         t.setShowHorizontalLines(true);
         t.setShowVerticalLines(false);
+        t.setIntercellSpacing(new java.awt.Dimension(0, 1));
         return t;
     }
 
     private JButton styledBtn(String text, Color bg) {
-        JButton b = new JButton(text);
-        b.setBackground(bg);
+        JButton b = new JButton(text) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = aa(g);
+                Color c = getModel().isPressed()  ? bg.darker().darker() :
+                          getModel().isRollover() ? bg.brighter()        : bg;
+                g2.setPaint(new GradientPaint(0, 0, c.brighter(), 0, getHeight(), c));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        b.setContentAreaFilled(false);
+        b.setOpaque(false);
         b.setForeground(Color.WHITE);
         b.setFont(new Font("Segoe UI", Font.BOLD, 12));
         b.setBorderPainted(false);
         b.setFocusPainted(false);
         b.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        b.setBorder(new EmptyBorder(7, 20, 7, 20));
+        b.setBorder(new EmptyBorder(8, 22, 8, 22));
         return b;
     }
 
@@ -995,8 +1112,20 @@ public class DashboardWindow extends JFrame {
     // ─── Punto de entrada ─────────────────────────────────────────────────────
     public static void launch() {
         try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            UIManager.setLookAndFeel("javax.swing.plaf.metal.MetalLookAndFeel");
         } catch (Exception ignored) {}
+        UIManager.put("TabbedPane.background",          BG_DARK);
+        UIManager.put("TabbedPane.foreground",           TXT_LIGHT);
+        UIManager.put("TabbedPane.selected",             new Color(35, 70, 120));
+        UIManager.put("TabbedPane.tabAreaBackground",    BG_DARK);
+        UIManager.put("TabbedPane.contentAreaColor",     BG_DARK);
+        UIManager.put("TabbedPane.light",                new Color(35, 70, 120));
+        UIManager.put("TabbedPane.highlight",            new Color(50, 90, 150));
+        UIManager.put("TabbedPane.shadow",               BG_DARK);
+        UIManager.put("TabbedPane.darkShadow",           new Color(10, 10, 20));
+        UIManager.put("TabbedPane.focus",                ACCENT);
+        UIManager.put("TabbedPane.unselectedBackground", new Color(24, 24, 38));
+        UIManager.put("TabbedPane.selectHighlight",      new Color(50, 90, 150));
         SwingUtilities.invokeLater(() -> {
             DashboardWindow w = new DashboardWindow();
             w.setVisible(true);

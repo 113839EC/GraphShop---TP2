@@ -48,7 +48,7 @@ public class ReportService {
     //     Traversal: (User)-[:MADE]->(Order) con filtro de estado COMPLETADO
     public List<Map<String, Object>> getTopCustomers(int limit) {
         String query = """
-                MATCH (u:User)-[:MADE]->(o:Order)
+                MATCH (u:User)-[:REALIZO]->(o:Order)
                 WHERE o.estado = 'COMPLETADO'
                 RETURN u.nombre           AS nombre,
                        u.email            AS email,
@@ -159,12 +159,12 @@ public class ReportService {
     //     Traversal: (User)-[:VISTO]->(Product)-[:PERTENECE_A]->(Category)
     public List<Map<String, Object>> getMostViewedProducts(int limit) {
         String query = """
-                MATCH (u:User)-[v:VIEWED]->(p:Product)-[:PERTENECE_A]->(c:Category)
+                MATCH (u:User)-[v:VISTO]->(p:Product)-[:PERTENECE_A]->(c:Category)
                 RETURN p.nombre                         AS nombre,
                        p.marca                          AS marca,
                        c.nombre                         AS categoria,
                        COUNT(v)                         AS totalVistas,
-                       AVG(coalesce(v.duracion, 0))     AS avgSegundos
+                       AVG(coalesce(v.duracionSegundos, 0)) AS avgSegundos
                 ORDER BY totalVistas DESC
                 LIMIT $limit
                 """;
