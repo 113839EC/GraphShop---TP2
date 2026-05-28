@@ -160,11 +160,11 @@ public class ReportService {
     public List<Map<String, Object>> getMostViewedProducts(int limit) {
         String query = """
                 MATCH (u:User)-[v:VISTO]->(p:Product)-[:PERTENECE_A]->(c:Category)
-                RETURN p.nombre                         AS nombre,
-                       p.marca                          AS marca,
-                       c.nombre                         AS categoria,
-                       COUNT(v)                         AS totalVistas,
-                       AVG(coalesce(v.duracionSegundos, 0)) AS avgSegundos
+                RETURN p.nombre                                  AS nombre,
+                       p.marca                                   AS marca,
+                       c.nombre                                  AS categoria,
+                       COUNT(v)                                  AS totalVistas,
+                       AVG(coalesce(v.duracionSegundos, 0))      AS avgSegundos
                 ORDER BY totalVistas DESC
                 LIMIT $limit
                 """;

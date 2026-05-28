@@ -752,12 +752,14 @@ CALL db.schema.visualization()
 | CAT5 | Libros y Cultura |
 
 ### Productos (30)
-6 productos por categoría, con precios realistas en ARS y marcas reconocibles.
+6 productos por categoría, con precios en ARS actualizados a 2026.
 
 **Ejemplos:**
-- Electrónica: Laptop Lenovo IdeaPad ($350.000), Auriculares Sony WH-1000XM5 ($85.000)
-- Deportes: Zapatillas Nike Air Max ($45.000), Bicicleta Trek ($280.000)
-- Libros: El nombre del viento - Patrick Rothfuss ($5.500)
+- Electrónica: iPhone 15 Pro ($1.850.000), MacBook Air M3 ($2.800.000), Sony WH-1000XM5 ($580.000)
+- Ropa y Moda: Nike Air Max 270 ($285.000), Campera The North Face ($480.000)
+- Hogar y Jardín: Aspiradora Robot iRobot ($980.000), Cafetera De'Longhi ($520.000)
+- Deportes: Bicicleta Trek Marlin 5 ($1.580.000), Pesas Ajustables ($450.000)
+- Libros: Clean Code ($28.000), El Señor de los Anillos ($22.500)
 
 ### Usuarios (25)
 20 usuarios activos + 5 inactivos, distribuidos en ciudades argentinas:
